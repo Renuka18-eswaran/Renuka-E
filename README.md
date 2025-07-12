@@ -1,2 +1,0 @@
-# Renuka-E
-Arttifai tech

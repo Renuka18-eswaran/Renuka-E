@@ -1,0 +1,116 @@
+# Renuka-E
+Project structure 
+LibraryManagementSystem/
+├── src/
+│   ├── controllers/
+│   │   ├── LoginController.java
+│   │   ├── AdminController.java
+│   │   ├── LibrarianController.java
+│   │   ├── StudentController.java
+│   ├── models/
+│   │   ├── Book.java
+│   │   ├── User.java
+│   │   ├── BorrowRecord.java
+│   │   ├── Database.java
+│   ├── views/
+│   │   ├── login.fxml
+│   │   ├── admin_dashboard.fxml
+│   │   ├── librarian_dashboard.fxml
+│   │   ├── student_dashboard.fxml
+│   │   ├── book_form.fxml
+│   ├── Main.java
+├── lib/
+│   └── (external libraries like SQLite JDBC)
+├── README.md
+├── .gitignore
+
+ 1.User Authentication 
+public class LoginController {
+    @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
+    @FXML private Label errorLabel;
+
+    public void handleLogin(ActionEvent event) {
+        String username = usernameField.getText();
+        String password = passwordField.getText();
+
+        User user = Database.authenticate(username, password);
+        if (user != null) {
+            switch (user.getRole()) {
+                case "Admin": loadDashboard("admin_dashboard.fxml"); break;
+                case "Librarian": loadDashboard("librarian_dashboard.fxml"); break;
+                case "Student": loadDashboard("student_dashboard.fxml"); break;
+            }
+        } else {
+            errorLabel.setText("Invalid username or password");
+        }
+    }
+
+    private void loadDashboard(String fxml) {
+        // Load the dashboard view
+    }
+}
+
+2.Book management 
+public void addBook(String title, String author, String genre, int copies) {
+    Book book = new Book(title, author, genre, copies);
+    Database.addBook(book);
+}
+
+public void updateBook(Book book) {
+    Database.updateBook(book);
+}
+
+public void deleteBook(int bookId) {
+    Database.deleteBook(bookId);
+}
+
+3.Borrow and return system 
+public void issueBook(int userId, int bookId) {
+    if (Database.isBookAvailable(bookId)) {
+        Database.issueBook(userId, bookId, LocalDate.now(), LocalDate.now().plusDays(14));
+    } else {
+        System.out.println("Book not available.");
+    }
+}
+
+public void returnBook(int userId, int bookId) {
+    LocalDate dueDate = Database.getDueDate(userId, bookId);
+    LocalDate today = LocalDate.now();
+    if (today.isAfter(dueDate)) {
+        long daysLate = ChronoUnit.DAYS.between(dueDate, today);
+        double fine = daysLate * 2.0; // Rs. 2 per day late
+        System.out.println("Fine: Rs. " + fine);
+    }
+    Database.returnBook(userId, bookId);
+}
+
+4.Database layer 
+public class Database {
+    private static Connection connect() {
+        try {
+            return DriverManager.getConnection("jdbc:sqlite:library.db");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static User authenticate(String username, String password) {
+        String query = "SELECT * FROM users WHERE username=? AND password=?";
+        try (Connection conn = connect(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, username);
+            stmt.setString(2, password); // NOTE: In production, hash passwords!
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return new User(rs.getInt("id"), rs.getString("username"), rs.getString("role"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    // Add more methods: addBook, updateBook, issueBook, returnBook
+}
+
+
